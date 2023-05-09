@@ -1,0 +1,139 @@
+<html>
+
+<head>
+    <title>Pyscript Introduction</title>
+    <meta charset="utf-8">
+
+    <!-- Add the following 2 lines to utilize `pyscript` -->
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+
+    <!-- The followings are for Bokeh -->
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-3.0.3.min.js"></script>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-gl-3.0.3.min.js"></script>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.0.3.min.js"></script>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-3.0.3.min.js"></script>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-mathjax-3.0.3.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body>
+    <div id="ui-wrapper" class="flex mt-10">
+        <div class="mx-auto">
+            <h2 class="text-center">Live stream update</h2>
+            <button id="fake_action_button" class="hidden" py-onClick="try_to_update()">Click Here</button>
+            <div id="graph-area"></div>            
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        const socket = new WebSocket("ws://localhost:8001/");
+
+        socket.addEventListener('open', function (event) {
+            console.log("==========Websocket connected==========");
+        });
+
+        socket.addEventListener('message', function (event) {
+            console.log("num:", event.data);
+            window.new_num_str = event.data;
+            document.getElementById("fake_action_button").click();
+        });        
+    </script>
+
+    <py-config>
+        packages = ["numpy", "matplotlib", "bokeh", "xyzservices", "pandas"]
+    </py-config>
+
+    <!-- For bokeh -->
+    <py-script>
+        import numpy as np
+        import json
+        from js import Bokeh, console, JSON, window
+        from bokeh.embed import json_item
+        from bokeh.plotting import figure
+        from bokeh.resources import CDN
+        from bokeh.models import Range1d
+
+        def my_draw_bokeh():
+            global max_length, last_Y
+            max_length = 100
+            last_Y = 0
+            global xdata, ydata
+            xdata = list(range(1-max_length, 1))
+            ydata = [-1] * max_length
+            global p
+            p = figure(title="Graph", x_axis_label='x', y_axis_label='y')
+            p.x_range = Range1d(-101, 1)
+            p.y_range = Range1d(0, 1100)
+            p.line(xdata, ydata, line_color="navy", line_width=2)
+            p.circle(xdata, ydata, size=3, line_color="navy", fill_color="orange", fill_alpha=0.5)
+            p_json = json.dumps(json_item(p, "graph-area"))
+            Element("graph-area").element.innerHTML = ""
+            Bokeh.embed.embed_item(JSON.parse(p_json))
+        
+        def try_to_update():
+            global last_Y
+            num = int(window.new_num_str)
+            if (last_Y != num):
+                ydata.append(num)
+                ydata.pop(0)
+                last_Y = num
+            if (len(xdata) > max_length):
+                xdata.pop(0)
+                ydata.pop(0)
+            p.line(xdata, ydata, line_color="navy", line_width=2)
+            p.circle(xdata, ydata, size=3, line_color="navy", fill_color="orange", fill_alpha=0.5)
+            p.renderers.pop(0)
+            p.renderers.pop(0)
+            p_json = json.dumps(json_item(p, "graph-area"))
+            Element("graph-area").element.innerHTML = ""
+            Bokeh.embed.embed_item(JSON.parse(p_json))
+
+        my_draw_bokeh()
+    </py-script>
+
+    <!-- For matplotlib -->
+    <!-- <py-script>
+        import numpy as np
+        import matplotlib.pyplot as plt
+        import socket
+        import time
+        import random
+        from js import window        
+
+        def draw_matplot():
+            global max_length, last_Y
+            max_length = 100
+            last_Y = 0
+            global fig, ax
+            fig, ax = plt.subplots()
+            global xdata, ydata
+            xdata = list(range(1-max_length, 1))
+            ydata = [-1] * max_length
+            global lines
+            lines, = ax.plot(xdata, ydata, 'y-o')
+            ax.set_xlim(-101, 1)
+            ax.set_ylim(0, 1010)
+            Element("graph-area").write(fig)
+
+        def try_to_update():
+            global last_Y
+            num = int(window.new_num_str)
+            if (last_Y != num):
+                ydata.append(num)
+                ydata.pop(0)
+                last_Y = num
+            if (len(xdata) > max_length):
+                xdata.pop(0)
+                ydata.pop(0)
+            lines.set_data(xdata, ydata)
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            Element("graph-area").write(fig)
+
+        draw_matplot()
+
+    </py-script>     -->
+</body>
+
+</html>
